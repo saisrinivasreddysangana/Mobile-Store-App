@@ -99,14 +99,15 @@ public class MobileController {
 
     // DELETE: Remove a mobile by ID
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMobile(@PathVariable Long id) {
+    public ResponseEntity<String> deleteMobile(@PathVariable Long id) {
         try {
             logger.info("Deleting mobile with ID: {}", id);
             mobileService.deleteMobile(id);
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.ok("Mobile with ID " + id + " successfully deleted");
         } catch (Exception e) {
             logger.error("Error deleting mobile: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error deleting mobile: " + e.getMessage());
         }
     }
 }

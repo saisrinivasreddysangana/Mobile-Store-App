@@ -41,9 +41,5 @@ public class Mobile {
     @NotBlank(message = "Please provide mobile colour")
     private String colour;
 
-    @Column(nullable = false)
-    @NotBlank(message = "Please provide mobile image")
-    private String image;
-
 
 }
