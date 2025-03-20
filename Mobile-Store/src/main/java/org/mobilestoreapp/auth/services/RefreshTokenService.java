@@ -2,8 +2,10 @@ package org.mobilestoreapp.auth.services;
 
 import org.mobilestoreapp.auth.entities.RefreshToken;
 import org.mobilestoreapp.auth.entities.User;
+import org.mobilestoreapp.auth.exception.RefreshTokenExpiredException;
 import org.mobilestoreapp.auth.repositories.RefreshTokenRepository;
 import org.mobilestoreapp.auth.repositories.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +16,10 @@ import java.util.UUID;
 public class RefreshTokenService {
 
     private final UserRepository userRepository;
-
     private final RefreshTokenRepository refreshTokenRepository;
 
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
 
     public RefreshTokenService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
@@ -27,16 +30,13 @@ public class RefreshTokenService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
 
-        RefreshToken refreshToken = user.getRefreshToken();
-
+        RefreshToken refreshToken = refreshTokenRepository.findByRefreshToken(username).orElse(null);
         if (refreshToken == null) {
-            long refreshTokenValidity = 30 * 100000;
             refreshToken = RefreshToken.builder()
                     .refreshToken(UUID.randomUUID().toString())
-                    .expirationTime(Instant.now().plusMillis(refreshTokenValidity))
+                    .expirationTime(Instant.now().plusMillis(refreshTokenExpiration))
                     .user(user)
                     .build();
-
             refreshTokenRepository.save(refreshToken);
         }
 
@@ -45,15 +45,13 @@ public class RefreshTokenService {
 
     public RefreshToken verifyRefreshToken(String refreshToken) {
         RefreshToken refToken = refreshTokenRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("Refresh token not found!"));
+                .orElseThrow(() -> new RefreshTokenExpiredException("Refresh token not found!"));
 
         if (refToken.getExpirationTime().compareTo(Instant.now()) < 0) {
             refreshTokenRepository.delete(refToken);
-            throw new RuntimeException("Refresh Token expired");
+            throw new RefreshTokenExpiredException("Refresh Token expired");
         }
 
         return refToken;
     }
 }
-
-

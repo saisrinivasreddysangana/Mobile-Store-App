@@ -1,8 +1,11 @@
 package org.mobilestoreapp.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "SMARTRONIX")
@@ -10,7 +13,7 @@ import lombok.*;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-
+@EqualsAndHashCode(of = "id")
 public class Mobile {
 
     @Id
@@ -34,8 +37,8 @@ public class Mobile {
     private String storage;
 
     @Column(nullable = false)
-    @NotBlank(message = "Please provide mobile price")
-    private long price;
+    @Min(value =599, message = "Price must  be less than 599")
+    private BigDecimal price;
 
     @Column(nullable = false)
     @NotBlank(message = "Please provide mobile colour")

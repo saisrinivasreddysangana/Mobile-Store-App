@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,8 +19,12 @@ public class MobileService {
 
     private static final Logger logger = LoggerFactory.getLogger(MobileService.class);
 
-    @Autowired
-    private MobileRepository mobileRepository;
+
+    private final MobileRepository mobileRepository;
+
+    public MobileService(MobileRepository mobileRepository) {
+        this.mobileRepository = mobileRepository;
+    }
 
     // Add multiple mobiles
     public List<Mobile> addMobiles(List<Mobile> mobiles) {
@@ -34,12 +39,14 @@ public class MobileService {
     }
 
     // Get a mobile by ID
-    public Optional<Mobile> getMobileById(Long id) {
+    public Mobile getMobileById(Long id) {
         logger.info("Fetching mobile with ID: {}", id);
-        return mobileRepository.findById(id);
+        return mobileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Mobile not found with ID: " + id));
     }
 
     // Delete a mobile by ID
+    @Transactional
     public void deleteMobile(Long id) {
         if (!mobileRepository.existsById(id)) {
             logger.error("Mobile with ID {} not found, cannot delete", id);
