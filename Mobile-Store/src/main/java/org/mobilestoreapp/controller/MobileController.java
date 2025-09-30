@@ -27,7 +27,7 @@ public class MobileController {
     private final MobileService mobileService;
 
     // POST: Add multiple mobiles
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('USER')")
     @PostMapping
     public ResponseEntity<List<Mobile>> addMobiles(@RequestBody @Valid List<Mobile> mobiles) {
         logger.info("Received request to add {} mobiles", mobiles.size());

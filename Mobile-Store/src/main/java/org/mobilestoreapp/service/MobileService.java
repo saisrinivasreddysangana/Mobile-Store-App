@@ -26,26 +26,26 @@ public class MobileService {
         this.mobileRepository = mobileRepository;
     }
 
-    // Add multiple mobiles
+    @Transactional
     public List<Mobile> addMobiles(List<Mobile> mobiles) {
         logger.info("Saving {} mobiles to the database", mobiles.size());
         return mobileRepository.saveAll(mobiles);
     }
 
-    // Get all mobiles with pagination
+    @Transactional(readOnly = true)
     public Page<Mobile> getAllMobiles(Pageable pageable) {
         logger.info("Fetching mobiles with pagination: Page={}, Size={}", pageable.getPageNumber(), pageable.getPageSize());
         return mobileRepository.findAll(pageable);
     }
 
-    // Get a mobile by ID
+    @Transactional(readOnly = true)
     public Mobile getMobileById(Long id) {
         logger.info("Fetching mobile with ID: {}", id);
         return mobileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Mobile not found with ID: " + id));
     }
 
-    // Delete a mobile by ID
+
     @Transactional
     public void deleteMobile(Long id) {
         if (!mobileRepository.existsById(id)) {

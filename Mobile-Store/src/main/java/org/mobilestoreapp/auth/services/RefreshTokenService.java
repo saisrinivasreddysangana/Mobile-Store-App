@@ -2,7 +2,7 @@ package org.mobilestoreapp.auth.services;
 
 import org.mobilestoreapp.auth.entities.RefreshToken;
 import org.mobilestoreapp.auth.entities.User;
-import org.mobilestoreapp.auth.exception.RefreshTokenExpiredException;
+import org.mobilestoreapp.exception.RefreshTokenExpiredException;
 import org.mobilestoreapp.auth.repositories.RefreshTokenRepository;
 import org.mobilestoreapp.auth.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,44 +14,47 @@ import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
-
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenRepository repo;
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
-    public RefreshTokenService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
+    public RefreshTokenService(UserRepository userRepository, RefreshTokenRepository repo) {
         this.userRepository = userRepository;
-        this.refreshTokenRepository = refreshTokenRepository;
+        this.repo = repo;
     }
 
-    public RefreshToken createRefreshToken(String username) {
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
+    public RefreshToken createRefreshToken(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        RefreshToken refreshToken = refreshTokenRepository.findByRefreshToken(username).orElse(null);
-        if (refreshToken == null) {
-            refreshToken = RefreshToken.builder()
-                    .refreshToken(UUID.randomUUID().toString())
-                    .expirationTime(Instant.now().plusMillis(refreshTokenExpiration))
-                    .user(user)
-                    .build();
-            refreshTokenRepository.save(refreshToken);
+        var existing = repo.findByUser(user).orElse(null);
+        String newValue = UUID.randomUUID().toString();
+        Instant newExpiry = Instant.now().plusMillis(refreshTokenExpiration);
+
+        if (existing != null) {
+            existing.setRefreshToken(newValue);
+            existing.setExpirationTime(newExpiry);
+            return repo.save(existing); // UPDATE, not INSERT
         }
-
-        return refreshToken;
+        // issue new token always (rotation) and optionally delete previous
+        RefreshToken token = RefreshToken.builder()
+                .refreshToken(UUID.randomUUID().toString())
+                .expirationTime(Instant.now().plusMillis(refreshTokenExpiration))
+                .user(user)
+                .build();
+        return repo.save(token);
     }
 
-    public RefreshToken verifyRefreshToken(String refreshToken) {
-        RefreshToken refToken = refreshTokenRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new RefreshTokenExpiredException("Refresh token not found!"));
-
-        if (refToken.getExpirationTime().compareTo(Instant.now()) < 0) {
-            refreshTokenRepository.delete(refToken);
-            throw new RefreshTokenExpiredException("Refresh Token expired");
+    public RefreshToken verifyRefreshToken(String tokenValue) {
+        RefreshToken token = repo.findByRefreshToken(tokenValue)
+                .orElseThrow(() -> new RefreshTokenExpiredException("Refresh token not found"));
+        if (token.getExpirationTime().isBefore(Instant.now())) {
+            repo.delete(token);
+            throw new RefreshTokenExpiredException("Refresh token expired");
         }
+        return token;
 
-        return refToken;
     }
 }

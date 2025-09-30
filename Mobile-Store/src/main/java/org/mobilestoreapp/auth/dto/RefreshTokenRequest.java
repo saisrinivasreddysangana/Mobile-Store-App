@@ -1,4 +1,4 @@
-package org.mobilestoreapp.auth.utils;
+package org.mobilestoreapp.auth.dto;
 
 import lombok.Data;
 

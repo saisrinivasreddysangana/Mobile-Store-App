@@ -3,9 +3,9 @@ package org.mobilestoreapp.auth.services;
 import org.mobilestoreapp.auth.entities.User;
 import org.mobilestoreapp.auth.entities.UserRole;
 import org.mobilestoreapp.auth.repositories.UserRepository;
-import org.mobilestoreapp.auth.utils.AuthResponse;
-import org.mobilestoreapp.auth.utils.LoginRequest;
-import org.mobilestoreapp.auth.utils.RegisterRequest;
+import org.mobilestoreapp.auth.dto.AuthResponse;
+import org.mobilestoreapp.auth.dto.LoginRequest;
+import org.mobilestoreapp.auth.dto.RegisterRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -13,6 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -36,6 +37,7 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest registerRequest) {
         User user = User.builder()
                 .name(registerRequest.getName())
@@ -46,17 +48,18 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        String accessToken = jwtService.generateToken(savedUser); // Ensure it accepts UserDetails
+        String accessToken = jwtService.generateToken(savedUser);
         var refreshToken = refreshTokenService.createRefreshToken(savedUser.getEmail());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getRefreshToken())
-                .name(savedUser.getName()) // Ensure `name` field exists in AuthResponse
-                .email(savedUser.getEmail()) // Ensure `email` field exists in AuthResponse
+                .name(savedUser.getName())
+                .email(savedUser.getEmail())
                 .build();
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest loginRequest) {
         try {
             authenticationManager.authenticate(
@@ -72,14 +75,14 @@ public class AuthService {
         var user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found!"));
 
-        String accessToken = jwtService.generateToken(user); // Ensure it accepts UserDetails
+        String accessToken = jwtService.generateToken(user);
         var refreshToken = refreshTokenService.createRefreshToken(user.getEmail());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getRefreshToken())
-                .name(user.getName()) // Ensure `name` exists in AuthResponse
-                .email(user.getEmail()) // Ensure `email` exists in AuthResponse
+                .name(user.getName())
+                .email(user.getEmail())
                 .build();
     }
 }

@@ -65,9 +65,10 @@ public class AuthFilterService extends OncePerRequestFilter {
                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                }
            }
-       }catch (ExpiredJwtException e){
+       }catch (ExpiredJwtException e) {
            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-           response.getWriter().write("Token has expired, please log in again");
+           response.setContentType("application/json");
+           response.getWriter().write("{\"message\":\"Token has expired. Please log in again.\"}");
            return;
        }
         filterChain.doFilter(request, response);

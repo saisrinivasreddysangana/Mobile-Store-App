@@ -1,15 +1,18 @@
 package org.mobilestoreapp.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.mobilestoreapp.commons.ProblemDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,54 +22,54 @@ public class GlobalExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(ResourceNotFoundException ex) {
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problemDetail.setTitle(("Resource not found"));
-        problemDetail.setProperty("timestamp", LocalDateTime.now());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+    public ProblemDetail handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest req) {
+        logger.warn("Resource not found: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.NOT_FOUND, "Resource not found", ex.getMessage(), req);
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleIllegalArgument(IllegalArgumentException ex) {
-        logger.error("Invalid argument: {}", ex.getMessage());
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    @ExceptionHandler(BadCredentialsException.class)
+    public ProblemDetail handleBadCredentials(BadCredentialsException ex, HttpServletRequest req) {
+        logger.warn("Authentication failed: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials", req);
     }
 
-    @ExceptionHandler(MobileServiceException.class)
-    public ResponseEntity<String> handleMobileServiceException(MobileServiceException ex) {
-        logger.error("Service error: {}", ex.getMessage());
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ProblemDetail handleUserNotFound(UsernameNotFoundException ex, HttpServletRequest req) {
+        logger.warn("User not found during auth: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.UNAUTHORIZED, "Authentication failed", "Invalid credentials", req);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ProblemDetail handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
         Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
-        );
-        logger.error("Validation failed: {}", errors);
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        ex.getBindingResult().getFieldErrors().forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
+        logger.warn("Validation failed: {}", errors);
+        ProblemDetail pd = ProblemDetails.of(HttpStatus.BAD_REQUEST, "Validation error", "Request validation failed", req);
+        pd.setProperty("errors", errors);
+        return pd;
     }
 
     @ExceptionHandler(io.jsonwebtoken.ExpiredJwtException.class)
-    public ResponseEntity<Map<String, Object>> handleJwtException(io.jsonwebtoken.ExpiredJwtException ex) {
-        logger.error("JWT expired: {}", ex.getMessage());
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("timestamp", LocalDateTime.now());
-        errorResponse.put("status", HttpStatus.UNAUTHORIZED.value());
-        errorResponse.put("error", "Unauthorized");
-        errorResponse.put("message", "JWT token has expired. Please log in again.");
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    public ProblemDetail handleJwtExpired(io.jsonwebtoken.ExpiredJwtException ex, HttpServletRequest req) {
+        logger.warn("JWT expired: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.UNAUTHORIZED, "Unauthorized", "JWT token has expired. Please log in again.", req);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest req) {
+        logger.error("Invalid argument: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.BAD_REQUEST, "Bad request", ex.getMessage(), req);
+    }
+
+    @ExceptionHandler(MobileServiceException.class)
+    public ProblemDetail handleService(MobileServiceException ex, HttpServletRequest req) {
+        logger.error("Service error: {}", ex.getMessage());
+        return ProblemDetails.of(HttpStatus.INTERNAL_SERVER_ERROR, "Service error", ex.getMessage(), req);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGlobalException(Exception ex) {
-        logger.error("Unexpected error: {}", ex.getMessage(), ex);
-        Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("timestamp", LocalDateTime.now());
-        errorResponse.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        errorResponse.put("error", "Internal Server Error");
-        errorResponse.put("message", "Something went wrong, please try again later");
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ProblemDetail handleUnexpected(Exception ex, HttpServletRequest req) {
+        logger.error("Unexpected error", ex);
+        return ProblemDetails.of(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Something went wrong, please try again later", req);
     }
 }
